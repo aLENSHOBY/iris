@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Glycemic Signals | Diabetes Model Lab</title>
+  <meta name="theme-color" content="#f5f7fb">
+  <script>
+    (function () {
+      try {
+        var linkTheme = new URLSearchParams(window.location.search).get("theme");
+        var savedTheme = localStorage.getItem("glycemic-theme");
+        var systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.dataset.theme =
+          (linkTheme === "light" || linkTheme === "dark") ? linkTheme : (savedTheme || systemTheme);
+      } catch (error) {
+        document.documentElement.dataset.theme =
+          window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+    }());
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <script src="https://unpkg.com/lucide@latest" defer></script>
+  <script src="{{ url_for('static', filename='script.js') }}" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Glycemic Signals home"><span class="brand-mark"><i data-lucide="activity" aria-hidden="true"></i></span><span>GLYCEMIC SIGNALS</span></a>
+    <nav class="topbar-nav" id="primary-navigation" aria-label="Main navigation">
+      <a href="#benchmark">Benchmark</a>
+      <a href="#predict">Explore profile</a>
+    </nav>
+    <div class="topbar-actions">
+      <span class="topbar-note"><i></i> MODEL LAB</span>
+      <button class="icon-button theme-toggle" type="button" aria-label="Switch to dark mode" title="Toggle color theme">
+        <i data-lucide="moon" class="theme-icon theme-icon-moon" aria-hidden="true"></i>
+        <i data-lucide="sun" class="theme-icon theme-icon-sun" aria-hidden="true"></i>
+      </button>
+      <button class="icon-button settings-trigger" type="button" aria-label="Open appearance settings" aria-controls="settings-panel" aria-expanded="false" title="Appearance settings">
+        <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
+      </button>
+      <button class="icon-button menu-toggle" type="button" aria-label="Open navigation menu" aria-controls="primary-navigation" aria-expanded="false">
+        <i data-lucide="menu" class="menu-icon-open" aria-hidden="true"></i>
+        <i data-lucide="x" class="menu-icon-close" aria-hidden="true"></i>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <section class="intro">
+      <div>
+        <p class="eyebrow"><span class="eyebrow-dot"></span> DIABETES PREDICTION DATASET / 2026</p>
+        <h1>Read the signals.<br><em>Compare the models.</em></h1>
+      </div>
+      <p class="intro-copy">A reproducible benchmark of three classifiers, trained on demographic and health indicators to estimate the dataset's diabetes label.</p>
+    </section>
+
+    <section class="overview" aria-label="Dataset overview">
+      <div class="stat"><span class="stat-icon"><i data-lucide="database" aria-hidden="true"></i></span><span class="stat-label">RECORDS</span><strong>{{ "{:,.0f}".format(summary.rows) }}</strong><span class="stat-foot">observations</span></div>
+      <div class="stat"><span class="stat-icon"><i data-lucide="scan-line" aria-hidden="true"></i></span><span class="stat-label">INPUT FEATURES</span><strong>{{ summary.features }}</strong><span class="stat-foot">2 categorical · 6 numeric</span></div>
+      <div class="stat stat-highlight"><span class="stat-icon"><i data-lucide="chart-no-axes-column-increasing" aria-hidden="true"></i></span><span class="stat-label">POSITIVE LABELS</span><strong>{{ "{:,.1f}%".format(summary.positive_rate * 100) }}</strong><span class="stat-foot">{{ "{:,.0f}".format(summary.positive_count) }} of {{ "{:,.0f}".format(summary.rows) }} records</span></div>
+      <div class="stat"><span class="stat-icon"><i data-lucide="split" aria-hidden="true"></i></span><span class="stat-label">TEST STRATEGY</span><strong>80 / 20</strong><span class="stat-foot">stratified holdout</span></div>
+    </section>
+
+    <section class="benchmark reveal" id="benchmark" aria-labelledby="benchmark-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">01 / EVALUATION</p><h2 id="benchmark-title">Model benchmark</h2></div>
+        <p><span class="live-dot"></span> Held-out performance · positive class = diabetes</p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>MODEL</th><th>ACCURACY</th><th>PRECISION</th><th>RECALL</th><th>F1</th><th>ROC AUC</th></tr></thead>
+          <tbody>
+            {% for name, metrics in ranked_models %}
+            <tr>
+              <th scope="row">{{ name }}{% if loop.first %}<span class="best-tag">TOP F1</span>{% endif %}</th>
+              <td>{{ "%.3f"|format(metrics.accuracy) }}</td>
+              <td>{{ "%.3f"|format(metrics.precision) }}</td>
+              <td>{{ "%.3f"|format(metrics.recall) }}</td>
+              <td><div class="metric-cell"><span>{{ "%.3f"|format(metrics.f1) }}</span><span class="meter"><i style="width: {{ (metrics.f1 * 100)|round(1) }}%"></i></span></div></td>
+              <td>{{ "%.3f"|format(metrics.roc_auc) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="benchmark-note"><strong>Why more than accuracy?</strong> Only 8.5% of records are positive, so accuracy alone can hide poor detection of the minority class. F1 balances precision and recall; ROC AUC summarizes ranking across thresholds.</p>
+    </section>
+
+    <section class="workbench reveal" id="predict" aria-labelledby="predict-title">
+      <div class="workbench-copy">
+        <p class="eyebrow">02 / INTERACTIVE ESTIMATE</p>
+        <h2 id="predict-title">Explore a profile</h2>
+        <p>Choose a fitted model and enter the same eight predictors used during evaluation. The estimate is the model's probability for the positive label.</p>
+        <div class="notice"><span class="notice-icon"><i data-lucide="info" aria-hidden="true"></i></span><p><strong>Research demonstration only.</strong> This dataset model is not validated for clinical decisions and does not provide a diagnosis.</p></div>
+        {% if prediction %}
+        <div class="result {% if prediction.label == 1 %}result-positive{% else %}result-negative{% endif %}" role="status">
+          <span class="result-kicker"><i data-lucide="sparkles" aria-hidden="true"></i> {{ prediction.model }} · estimated probability</span>
+          <strong>{{ "%.1f%%"|format(prediction.probability * 100) }}</strong>
+          <span>Model label at 0.50 threshold: <b>{{ "Positive" if prediction.label == 1 else "Negative" }}</b></span>
+        </div>
+        {% elif error %}
+        <div class="error-message" role="alert">{{ error }}</div>
+        {% endif %}
+      </div>
+
+      <form class="predict-form" method="post">
+        <label class="field field-wide">MODEL
+          <select name="model" autocomplete="off">
+            {% for name, metrics in ranked_models %}<option value="{{ name }}" {% if selected_model == name %}selected{% endif %}>{{ name }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="field">AGE <span>years</span><input name="age" type="number" min="0" max="120" step="0.1" value="45" required></label>
+        <label class="field">GENDER<select name="gender"><option>Female</option><option>Male</option><option>Other</option></select></label>
+        <label class="field">BMI<input name="bmi" type="number" min="0.1" max="100" step="0.01" value="27.0" required></label>
+        <label class="field">SMOKING HISTORY<select name="smoking_history"><option>No Info</option><option>never</option><option>current</option><option>former</option><option>ever</option><option>not current</option></select></label>
+        <label class="field">HbA1c LEVEL<input name="HbA1c_level" type="number" min="0.1" max="20" step="0.1" value="5.7" required></label>
+        <label class="field">BLOOD GLUCOSE<input name="blood_glucose_level" type="number" min="1" max="1000" step="1" value="120" required></label>
+        <label class="field">HYPERTENSION<select name="hypertension"><option value="0">No</option><option value="1">Yes</option></select></label>
+        <label class="field">HEART DISEASE<select name="heart_disease"><option value="0">No</option><option value="1">Yes</option></select></label>
+        <button class="submit-button" type="submit"><span>Estimate probability</span><i data-lucide="arrow-up-right" aria-hidden="true"></i></button>
+      </form>
+    </section>
+
+    <section class="method reveal" aria-label="Preprocessing summary">
+      <span class="method-label">PIPELINE</span>
+      <p><b>Before fitting:</b> stratified train/test split · one-hot encoding for gender and smoking history · standard scaling for numeric inputs · class weighting for imbalanced labels · preprocessing learned on training data only.</p>
+    </section>
+  </main>
+
+  <footer><span>GLYCEMIC SIGNALS / MODEL LAB</span><span>Dataset labels are not clinical outcomes.</span></footer>
+
+  <div class="drawer-backdrop" data-drawer-close hidden></div>
+  <aside class="settings-panel" id="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title" aria-hidden="true" tabindex="-1" inert>
+    <div class="settings-header">
+      <div><p class="eyebrow">PERSONALIZE</p><h2 id="settings-title">Appearance</h2></div>
+      <button class="icon-button settings-close" type="button" aria-label="Close appearance settings"><i data-lucide="x" aria-hidden="true"></i></button>
+    </div>
+    <p class="settings-description">Tune the interface to your preference. Your choices are saved on this device.</p>
+    <div class="setting-group">
+      <label for="icon-style">Icon style</label>
+      <select id="icon-style" name="icon-style">
+        <option value="outline">Outline</option>
+        <option value="solid">Solid</option>
+        <option value="duotone">Duotone</option>
+      </select>
+    </div>
+    <div class="setting-group">
+      <label for="icon-size">Icon size</label>
+      <select id="icon-size" name="icon-size">
+        <option value="small">Small</option>
+        <option value="medium">Medium</option>
+        <option value="large">Large</option>
+      </select>
+    </div>
+    <div class="setting-group color-setting">
+      <label for="icon-color">Icon color</label>
+      <input id="icon-color" type="color" value="#6757e8">
+    </div>
+    <div class="setting-group color-setting">
+      <label for="accent-color">Theme accent</label>
+      <input id="accent-color" type="color" value="#6757e8">
+    </div>
+    <button class="reset-settings" type="button">Reset appearance</button>
+  </aside>
+  <div class="toast-region" aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>
